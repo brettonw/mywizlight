@@ -5,7 +5,7 @@ import operator;
 # of color resolution
 epsilon = 1.0e-5;
 
-# a bunch of utility functions, just so we don't have to bring in any dependencies
+# a bunch of utility functions, just so we don't have to bring in any external dependencies
 def vecDot (a, b):
     return sum(map(operator.mul, a, b));
 

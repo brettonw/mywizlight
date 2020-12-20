@@ -1,16 +1,17 @@
 #!/usr/bin/env python3
 
-import asyncio;
-import time;
 import math;
 import operator;
 
 from pywizlight.bulb import PilotBuilder, PilotParser, wizlight
 
-from mylights import getLightIp;
 from vec import *;
 
-light = wizlight (getLightIp ());
+# can't actually change a value like this from another files once it's been loaded. this
+# is actually a very bad design on python's part IMNSHO, and this is an ugly workaround
+verbose = [False];
+def setVerbose (val):
+    verbose[0] = val;
 
 # red, green, blue basis vectors to simulate the homekit color wheel - just vectors at 3
 # angles (0, 120, 240)
@@ -22,27 +23,24 @@ basis = (
 );
 
 def printBasis (basis, prefix = ""):
-    print ("{}Basis Vectors: ".format (prefix), end = "");
-    for vector in basis:
-        print ("{} ".format (vecFormat (vector)), end="");
-    print ("");
+    if verbose[0]:
+        print ("{}Basis Vectors: ".format (prefix), end = "");
+        for vector in basis:
+            print ("{} ".format (vecFormat (vector)), end="");
+        print ("");
 printBasis (basis);
-
-def linearCombination (rgb):
-    # XXX probably a pythonese way of doing this
-    # sum the basis vectors
-    return vecAdd (vecAdd (vecMul (basis[0], rgb[0]), vecMul (basis[1], rgb[1])), vecMul (basis[2], rgb[2]));
 
 def rgb2rgbcw (rgb):
     # in the homekit color wheel, red, green, blue are uniformly distributed basis vectors
     # in 2 dimensions. the lowest value is
-    print ("RGB-IN: {}".format (rgb));
+    if verbose[0]: print ("RGB-IN: {}".format (rgb));
 
     # scale the vector into canonical space ([0-1])
     rgb = vecMul (rgb, 1 / 255);
 
     # compute the linear combination of the basis vectors, and extract the saturation
-    combination = linearCombination (rgb);
+    # XXX probably a pythonese way of doing this
+    combination = vecAdd (vecAdd (vecMul (basis[0], rgb[0]), vecMul (basis[1], rgb[1])), vecMul (basis[2], rgb[2]));
     saturation = vecLen (combination);
 
     # if saturation is essentially 0, just go to the full on
@@ -61,7 +59,7 @@ def rgb2rgbcw (rgb):
         maxAngle = math.cos ((math.pi * 2 / 3) - epsilon);
         mask = tuple([(1 if (vecDot (saturated, vector) > maxAngle) else 0) for vector in basis]);
         count = sum(mask);
-        print ("    Max Angle: {:0.3f}, Mask: ({}, {}, {}), Count: {}".format (maxAngle, mask[0], mask[1], mask[2], count));
+        if verbose[0]: print ("    Max Angle: {:0.3f}, Mask: ({}, {}, {}), Count: {}".format (maxAngle, mask[0], mask[1], mask[2], count));
         if (count == 1):
             # easy case, it's just one color component
             rgb = mask;
@@ -88,7 +86,7 @@ def rgb2rgbcw (rgb):
             intersection = vecAdd (vecMul (subBasis[0], -coeff[0]), saturated);
             coeff[1] = vecDot (intersection, subBasis[1]);
 
-            print ("    Intersection: {}, b: {}".format (vecFormat (intersection), vecFormat (coeff)));
+            if verbose[0]: print ("    Intersection: {}, b: {}".format (vecFormat (intersection), vecFormat (coeff)));
 
             # now rebuild the vector
             j = 0;
@@ -115,7 +113,7 @@ def rgb2rgbcw (rgb):
     rgb = vecInt (vecMul (rgb, 255));
 
     # scale cw back to 1-255 and return the Pilot Builder that includes the white light
-    print ("    RGB-OUT: {}, CW: {}".format (rgb, cw));
+    if verbose[0]: print ("    RGB-OUT: {}, CW: {}".format (rgb, cw));
 
     # the wiz light appears to have 5 different LEDs, r, g, b, warm_white, and cold_white
     # there appears to be a max power supplied across the 5 LEDs, which explains why all-
@@ -123,28 +121,3 @@ def rgb2rgbcw (rgb):
     # warm_white appears to be 2800k, and cold_white appears to be 6200k, somewhat neutral
     # brightness is achieved by turning both of them on
     return PilotBuilder(rgb = rgb, warm_white = cw, cold_white = cw);
-
-
-numSteps = 32;
-stepSize = int (256 / numSteps);
-
-async def myColor (step):
-    stepVal = min (step * stepSize, 255);
-    #await light.turn_on(rgb2rgbcw ((255,stepVal,int (127.5 + (stepVal / 2)))));
-    #await light.turn_on(rgb2rgbcw ((255, stepVal, stepVal)));
-    await light.turn_on(rgb2rgbcw ((255, stepVal, 255)));
-
-async def main():
-
-    await myColor (0);
-    time.sleep (5);
-
-    for step in range (numSteps + 1):
-        await myColor (step);
-
-    time.sleep (5);
-
-loop = asyncio.get_event_loop();
-loop.run_until_complete(main());
-
-
