@@ -3,26 +3,50 @@
 import asyncio;
 import time;
 
-from pywizlight.bulb import PilotBuilder, PilotParser, wizlight;
+from mylights import getLight;
 
-from mylights import getLightIp;
+def printMap (m, title = "Map", keys = None):
+    print ("{} = (".format (title), end = "");
+    separator = "";
+    if (keys is None):
+        for key, value in m.items() :
+            print ("{}{}: {}".format (separator, key, value), end = "");
+            separator = ", ";
+    else:
+        for key in keys:
+            if key in m:
+                print ("{}{}: {}".format (separator, key, m[key]), end = "");
+                separator = ", ";
+    print (")");
 
-light = wizlight (getLightIp ());
+def checkDifferent (a, b, keys):
+    for key in keys:
+        keyCount = (1 if (key in a) else 0) + (1 if (key in b) else 0);
+        if ((keyCount == 1) or ((keyCount == 2) and (a[key] != b[key]))):
+            return True;
+    return False;
 
 async def main():
-    lastState = await light.updateState();
-    print("Scene: {}, JSON: {}".format(lastState.get_scene(), lastState.__dict__["pilotResult"]));
+    light = getLight ();
+    if not light is None:
+        resp = await light.getBulbConfig()
+        if resp is not None and "result" in resp:
+            printMap (resp["result"], "Config", ["mac", "moduleName", "fwVersion", "ewf"]);
 
-    while 1 < 6:
+    lastState = await light.updateState();
+    lastState = lastState.pilotResult;
+    stateVals = ["temp", "r", "g", "b", "c", "w", "dimming"];
+    printMap (lastState, "Start ", stateVals);
+
+    while True:
         state = await light.updateState();
+        state = state.pilotResult;
 
         # see if the new state matches the last state
-        coldWhiteMatches = (state.get_cold_white() == lastState.get_cold_white());
-        warmWhiteMatches = (state.get_warm_white() == lastState.get_warm_white());
-        rgbMatches = (state.get_rgb() == lastState.get_rgb());
-        if (not (coldWhiteMatches and warmWhiteMatches and rgbMatches)):
-            print("Scene: {}, JSON: {}".format(state.get_scene(), state.__dict__["pilotResult"]));
+        if checkDifferent (lastState, state, stateVals):
+            printMap (state, "Update", stateVals);
             lastState = state;
+
 
 loop = asyncio.get_event_loop();
 loop.run_until_complete(main());

@@ -1,22 +1,27 @@
 import sys;
+from pywizlight.bulb import PilotBuilder, PilotParser, wizlight
 
-MYLIGHTS = {
+lightIpsByName = {
     "office": "192.168.1.217",
-    "nook": "192.168.1.230"
+    "nook":   "192.168.1.230"
 };
+lightNamesByIp = {v: k for k, v in lightIpsByName.items()};
 
-def getLightIp ():
+def makeLight (name):
+    ip = lightIpsByName[name];
+    print ("Light: {} ({})".format (name, ip));
+    return wizlight (ip);
+
+def getLight ():
+    # default to the office light (for testing)
     if (len (sys.argv) > 1):
         # read the second argument
         light = sys.argv[1];
-        if light in MYLIGHTS:
-            print ("Using {} ({})".format (light, MYLIGHTS[light]));
-            return MYLIGHTS[light];
-        if light.startswith ("192.168"):
-            # could do more to validate this, like reverse index MYLIGHTS...
-            print ("Using supplied IP ({})".format (light));
-            return light;
-        print ("Unknown light".format (light));
-    # default to the office light
-    print ("Default to office light ({})".format (MYLIGHTS["office"]));
-    return MYLIGHTS["office"];
+        if light in lightIpsByName:
+            return makeLight (light);
+        if light in lightNamesByIp:
+            return makeLight (lightNamesByIp[light]);
+        print ("Unknown light ({})".format (light));
+    else:
+        print ("ERROR: No light specified");
+    return None;
