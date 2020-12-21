@@ -31,7 +31,7 @@ async def main():
     if not light is None:
         resp = await light.getBulbConfig()
         if resp is not None and "result" in resp:
-            printMap (resp["result"], "Config", ["mac", "moduleName", "fwVersion", "ewf"]);
+            printMap (resp["result"], "Config", ["mac", "moduleName", "fwVersion"]);
 
     lastState = await light.updateState();
     lastState = lastState.pilotResult;
