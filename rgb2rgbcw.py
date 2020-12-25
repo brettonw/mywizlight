@@ -121,3 +121,6 @@ def rgb2rgbcw (rgb):
     # warm_white appears to be 2800k, and cold_white appears to be 6200k, somewhat neutral
     # brightness is achieved by turning both of them on
     return PilotBuilder(rgb = rgb, warm_white = cw, cold_white = cw);
+
+def rgbcw2rgb (rgb, cw):
+    print ("Hi");

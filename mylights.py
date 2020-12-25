@@ -3,6 +3,16 @@ from pywizlight.bulb import PilotBuilder, PilotParser, wizlight
 
 lightIpsByName = {
     "office": "192.168.1.217",
+    "nook":   "192.168.1.230",
+    "nook":   "192.168.1.230",
+    "nook":   "192.168.1.230",
+    "nook":   "192.168.1.230",
+    "nook":   "192.168.1.230",
+    "nook":   "192.168.1.230",
+    "nook":   "192.168.1.230",
+    "nook":   "192.168.1.230",
+    "nook":   "192.168.1.230",
+    "nook":   "192.168.1.230",
     "nook":   "192.168.1.230"
 };
 lightNamesByIp = {v: k for k, v in lightIpsByName.items()};
