@@ -30,9 +30,12 @@ def printBasis (basis, prefix = ""):
         print ("");
 printBasis (basis);
 
+# the max value we will use for c and w
+cwMax = 128;
+
 def rgb2rgbcw (rgb):
     # in the homekit color wheel, red, green, blue are uniformly distributed basis vectors
-    # in 2 dimensions. the lowest value is
+    # in 2 dimensions.
     if verbose[0]: print ("RGB-IN: {}".format (rgb));
 
     # scale the vector into canonical space ([0-1])
@@ -104,7 +107,6 @@ def rgb2rgbcw (rgb):
     # note: the Philips app caps cw at 140 and uses just the warm white, but I can't see a
     # difference in the bulb from 128 and up. we combine the cold_white and warm_white for
     # a truer color representation.
-    cwMax = 128;
     if (cw > 0.5):
         rgb = vecMul (rgb, 1 - ((cw - 0.5) * 2));
     cw = min (1 + int (cw * 2 * cwMax), cwMax);
@@ -122,5 +124,13 @@ def rgb2rgbcw (rgb):
     # brightness is achieved by turning both of them on
     return PilotBuilder(rgb = rgb, warm_white = cw, cold_white = cw);
 
-def rgbcw2rgb (rgb, cw):
-    print ("Hi");
+# given a tuple that is r,g,b,cw in 0-255 range, convert that to an r,g,b tuple
+def rgbcw2rgb (rgbcw):
+    rgb = vecMul ((rgbcw[0], rgbcw[1], rgbcw[2]), 1 / 255);
+    cw = rgbcw[3] / cwMax;
+    if (cw == 1):
+        # cw is fully saturated, and rgb scales down to white
+        print ("High");
+    else:
+        # the rgb vector is fully saturated, and cw scales from 0-0.5 to add in white light
+        print ("Low");
