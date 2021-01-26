@@ -114,7 +114,7 @@ def trapezoid (hueVec, saturation, brightness):
     if (cw == 0): cw = None;
 
     # scale cw back to 1-255 and return the Pilot Builder that includes the white light
-    debug ("    RGB-OUT: {}, CW: {}".format (rgb, cw))
+    debug ("    RGB OUT: {}, CW: {}".format (rgb, cw))
 
     # the wiz light appears to have 5 different LEDs, r, g, b, warm_white, and cold_white
     # there appears to be a max power supplied across the 5 LEDs, which explains why all-
@@ -127,13 +127,13 @@ def trapezoid (hueVec, saturation, brightness):
 cwMax = 128
 
 def rgb2rgbcw (rgb, brightness):
-    debug ("RGB-IN: {}, BRIGHTNESS: {}".format (rgb, brightness))
+    debug ("RGB IN: {}, BRIGHTNESS: {}".format (rgb, brightness))
 
     # scale the vector into canonical space ([0-1])
     rgb = vecMul (rgb, 1 / 255)
 
-    # compute the linear combination of the basis vectors, and extract the saturation
-    # XXX probably a pythonese way of doing this
+    # compute the hue vector as a linear combination of the basis vectors, and extract the
+    # saturation, there's probably a better pythonese way of doing this
     hueVec = vecAdd (vecAdd (vecMul (basis[0], rgb[0]), vecMul (basis[1], rgb[1])), vecMul (basis[2], rgb[2]))
     saturation = vecLen (hueVec)
     if (saturation > epsilon):
@@ -141,40 +141,66 @@ def rgb2rgbcw (rgb, brightness):
 
     return trapezoid(hueVec, saturation, brightness)
 
-# given a tuple that is r,g,b and cw in 0-255 range, convert that to an r,g,b tuple
-def rgbcw2rgb (rgb, cw):
+# given a tuple that is r,g,b and cw in 0-255 range, convert that to a hue, saturation tuple in the
+# range (0..360, 0..100)
+def rgbcw2hs (rgb, cw):
+    # scale the rgb and cw values into canonical space (the wiz app might set cw to higher than the
+    # value we use, so we have to allow for that
     rgb = vecMul (rgb, 1 / 255)
-    cw /= cwMax
+    cw = min (cw, cwMax) / cwMax
+
+    # compute the hue vector as a linear combination of the basis vectors, there's probably a
+    # better pythonese way of doing this
+    hueVec = vecAdd (vecAdd (vecMul (basis[0], rgb[0]), vecMul (basis[1], rgb[1])), vecMul (basis[2], rgb[2]))
+    debug ("RGB IN: {}, CW: {:.5f}, HUE VECTOR: {:.3f}".format (vecFormat(rgb), cw, vecFormat (hueVec)))
+
+    # the discontinuous nature of the wiz bulb setting means we have two different states:
+    # 1) the cw value is 1, and the hue vector is scaled (from 50% saturation to white)
+    # 2) the hue vector is saturated, and cw is scaled down (from 50% saturation to full color)
     if (cw == 1):
-        # cw is fully saturated, and rgb scales down to white
-        debug ("High")
+        # hue scales down to (0, 0) at saturation 0, up to unit length at 50% saturation, so we get
+        # that length, normalize the vector, and scale the saturation to reflect the half range
+        hueVecLength = vecLen(hueVec)
+        vecMul (hueVec, 1 / hueVecLength)
+        saturation = hueVecLength * 0.5
     else:
-        # the rgb vector is fully saturated, and cw scales from 0-0.5 to add in white light
-        debug ("Low")
+        # the hue vector is already fully saturated, and cw scales from 0 - 0.5 to add in white light
+        saturation = 1 - (cw / 2)
 
-# x = canonicalValue
-# n = number of divisions
-# w = scale
-def discretize (x, n, w):
-    s = 1 / (n - 1)
-    y = int ((x + (s / 2)) / s)
-    z = y * s
-    return z * w
+    # we have a saturated version of the hue vector now, which we convert to a hue vector and
+    # then extract the angle of the vector in radians. We add P2 pi to the angle if it is less than
+    # 0 to put the hue angle in the range from 0 to 2 Pi
+    hue = math.atan2 (hueVec[1], hueVec[0])
+    while (hue < 0): hue += (math.pi * 2)
 
+    # scale the hue/saturation values back to their native ranges and return the tuple
+    hue *= (180 / math.pi)
+    saturation *= 100
+    debug ("    HUE OUT: {:.5f}, SATURATION: {:.3f}".format (hue, saturation))
+    return hue, saturation
+
+# given a canonical value, a width, and a number of divisions, snap the value to the nearest subdivision
+def snapToDiscreteValue (canonicalValue, divisions, scale):
+    spacing = 1 / (divisions - 1)
+    snapIndex = int ((canonicalValue + (spacing / 2)) / spacing)
+    snappedX = snapIndex * spacing
+    return snappedX * scale
+
+# given a hue, saturation tuple in the range (0..360, 0..100), convert that to a rgbcw for the wiz light
 def hs2rgbcw (hs, brightness):
     # convert hue to a canonical value
     hueCanonical = hs[0] / 360
     while (hueCanonical >= 1): hueCanonical -= 1;
 
     # compute hue in a discretized space and convert to radians, then a vector
-    hueRadians = discretize (hueCanonical, 3 * 8, math.pi * 2)
+    hueRadians = snapToDiscreteValue (hueCanonical, 3 * 8, math.pi * 2)
     hueVec = vecFromAngle(hueRadians)
 
     # convert saturation to a canonical value in a discretized space
     # we take the square root to give the user more visual control
     saturationCanonical = hs[1] / 100
-    saturation = discretize (math.sqrt(saturationCanonical), 8, 1)
+    saturation = snapToDiscreteValue (math.sqrt(saturationCanonical), 8, 1)
 
-    debug ("HS: {}, HUE: {:.5f}, SATURATION: {:.3f}, BRIGHTNESS: {}".format (vecFormat(hs), hueRadians, saturation, brightness))
+    debug ("HS IN: {}, HUE: {:.5f}, SATURATION: {:.3f}, BRIGHTNESS: {}".format (vecFormat(hs), hueRadians, saturation, brightness))
 
     return trapezoid (hueVec, saturation, brightness)
