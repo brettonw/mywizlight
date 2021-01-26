@@ -10,21 +10,12 @@ except: from rgb2rgbcw import rgb2rgbcw, setVerbose, discretize;
 
 setVerbose (True)
 
-# x = canonicalValue
-# n = number of divisions
-# w = scale
-def mydiscretize (x, n, w):
-    s = 1 / (n - 1)
-    y = int ((x + (s / 2)) / s)
-    z = y * s
-    return z * w
-
 divisions = 5
 width = 1
 tests = 8
 for x in range(tests + 1):
     y = ((x + 0.75) / tests) * width
-    z = mydiscretize (y, divisions, width)
+    z = discretize (y, divisions, width)
     passTest = ((z - y) <= ((width / (divisions - 1)) / 2))
     print ("X: {}, Y: {:0.3f}, Z: {}, PASS: {}".format (x, y, z, "PASS" if (passTest) else "FAIL"))
 
