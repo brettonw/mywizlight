@@ -8,7 +8,7 @@ from pywizlight.bulb import PilotBuilder, PilotParser, wizlight
 try: from .vec import *;
 except: from vec import *;
 
-# can't actually change a value like this from another files once it's been loaded. this
+# can't actually change a value like this from another file once it's been loaded. this
 # is actually a very bad design on python's part IMNSHO, and this is an ugly workaround
 verbose = [False]
 def setVerbose (val):
@@ -161,7 +161,8 @@ def rgbcw2hs (rgb, cw):
         # hue scales down to (0, 0) at saturation 0, up to unit length at 50% saturation, so we get
         # that length, normalize the vector, and scale the saturation to reflect the half range
         hueVecLength = vecLen(hueVec)
-        vecMul (hueVec, 1 / hueVecLength)
+        if (hueVecLength > epsilon):
+            vecMul (hueVec, 1 / hueVecLength)
         saturation = hueVecLength * 0.5
     else:
         # the hue vector is already fully saturated, and cw scales from 0 - 0.5 to add in white light
@@ -199,7 +200,7 @@ def hs2rgbcw (hs, brightness):
     # convert saturation to a canonical value in a discretized space
     # we take the square root to give the user more visual control
     saturationCanonical = hs[1] / 100
-    saturation = snapToDiscreteValue (math.sqrt(saturationCanonical), 8, 1)
+    saturation = snapToDiscreteValue (saturationCanonical, 8, 1)
 
     debug ("HS IN: {}, HUE: {:.5f}, SATURATION: {:.3f}, BRIGHTNESS: {}".format (vecFormat(hs), hueRadians, saturation, brightness))
 
